@@ -1,5 +1,6 @@
 'use strict';
 
+import { Command, Range } from 'vscode';
 import {
     CodeActionParams,
     ExecuteCommandParams,
@@ -13,7 +14,6 @@ import {
     WorkspaceEdit,
     WorkspaceSymbolParams,
 } from 'vscode-languageclient';
-import { Command, Range } from 'vscode';
 
 /**
  * The message type. Copied from vscode protocol
@@ -22,19 +22,19 @@ export enum MessageType {
     /**
      * An error message.
      */
-    Error = 1,
+    error = 1,
     /**
      * A warning message.
      */
-    Warning = 2,
+    warning = 2,
     /**
      * An information message.
      */
-    Info = 3,
+    info = 3,
     /**
      * A log message.
      */
-    Log = 4,
+    log = 4,
 }
 
 /**
@@ -56,45 +56,49 @@ export enum FeatureStatus {
 }
 
 export enum EventType {
-    ClasspathUpdated = 100,
-    ProjectsImported = 200,
-    IncompatibleGradleJdkIssue = 300,
-	UpgradeGradleWrapper = 400,
+    classpathUpdated = 100,
+    projectsImported = 200,
+    projectsDeleted = 210,
+    incompatibleGradleJdkIssue = 300,
+    upgradeGradleWrapper = 400,
+    sourceInvalidated = 500,
 }
 
 export enum CompileWorkspaceStatus {
-    FAILED = 0,
-    SUCCEED = 1,
-    WITHERROR = 2,
-    CANCELLED = 3,
+    failed = 0,
+    succeed = 1,
+    withError = 2,
+    cancelled = 3,
 }
 
 export enum AccessorKind {
-    GETTER = 0,
-    SETTER = 1,
-    BOTH = 2
+    getter = 0,
+    setter = 1,
+    both = 2
 }
 
 export interface StatusReport {
-	message: string;
-	type: string;
+    message: string;
+    type: string;
 }
 
 export interface ProgressReport {
-	id: string;
-	task: string;
-	subTask: string;
-	status: string;
-	workDone: number;
-	totalWork: number;
-	complete: boolean;
+    token: string;
+    value: any;
+    complete: boolean;
+}
+
+export enum ProgressKind {
+    begin = "begin",
+    report = "report",
+    end = "end"
 }
 
 export interface ActionableMessage {
-	severity: MessageType;
-	message: string;
-	data?: any;
-	commands?: Command[];
+    severity: MessageType;
+    message: string;
+    data?: any;
+    commands?: Command[];
 }
 
 export interface EventNotification {
@@ -103,11 +107,12 @@ export interface EventNotification {
 }
 
 export namespace StatusNotification {
-	export const type = new NotificationType<StatusReport>('language/status');
+    export const type = new NotificationType<StatusReport>('language/status');
 }
 
-export namespace ProgressReportNotification {
-	export const type = new NotificationType<ProgressReport>('language/progressReport');
+// See https://github.com/microsoft/vscode-languageserver-node/blob/release/client/8.1.0/jsonrpc/src/common/connection.ts#L53-L55
+export namespace ProgressNotification {
+	export const type = new NotificationType<ProgressReport>('$/progress');
 }
 
 export namespace ClassFileContentsRequest {
@@ -179,8 +184,8 @@ export interface OverridableMethod {
 }
 
 export interface OverridableMethodsResponse {
-	type: string;
-	methods: OverridableMethod[];
+    type: string;
+    methods: OverridableMethod[];
 }
 
 export namespace ListOverridableMethodsRequest {
@@ -226,6 +231,10 @@ export namespace GenerateHashCodeEqualsRequest {
 
 export namespace OrganizeImportsRequest {
     export const type = new RequestType<CodeActionParams, WorkspaceEdit, void>('java/organizeImports');
+}
+
+export namespace CleanupRequest {
+    export const type = new RequestType<TextDocumentIdentifier, WorkspaceEdit, void>('java/cleanup');
 }
 
 export interface ImportCandidate {
@@ -357,11 +366,25 @@ export namespace GetRefactorEditRequest {
     export const type = new RequestType<GetRefactorEditParams, RefactorWorkspaceEdit, void>('java/getRefactorEdit');
 }
 
+export namespace GetChangeSignatureInfoRequest {
+    export const type = new RequestType<CodeActionParams, ChangeSignatureInfo, void>('java/getChangeSignatureInfo');
+}
+
 export interface SelectionInfo {
     name: string;
     length: number;
     offset: number;
     params?: string[];
+}
+
+export interface ChangeSignatureInfo {
+    methodIdentifier: string;
+	modifier: string;
+	returnType: string;
+	methodName: string;
+	parameters: any;
+    exceptions: any;
+    errorMessage: string;
 }
 
 export interface InferSelectionParams {
@@ -428,7 +451,7 @@ export namespace FindLinks {
 }
 
 export interface RenameFilesParams {
-    files: Array<{ oldUri: string, newUri: string }>;
+    files: Array<{ oldUri: string; newUri: string }>;
 }
 
 export namespace WillRenameFiles {
@@ -443,7 +466,41 @@ export interface GradleCompatibilityInfo {
 }
 
 export interface UpgradeGradleWrapperInfo {
-	projectUri: string;
-	message: string;
-	recommendedGradleVersion: string;
+    projectUri: string;
+    message: string;
+    recommendedGradleVersion: string;
+}
+
+export interface Member {
+    name: string;
+    typeName: string;
+    parameters: string[];
+    handleIdentifier: string;
+}
+
+export interface CheckExtractInterfaceStatusResponse {
+    members: Member[];
+    subTypeName: string;
+    destinationResponse: MoveDestinationsResponse;
+}
+
+export namespace CheckExtractInterfaceStatusRequest {
+    export const type = new RequestType<CodeActionParams, CheckExtractInterfaceStatusResponse, void>('java/checkExtractInterfaceStatus');
+}
+
+export interface ValidateDocumentParams {
+    textDocument: TextDocumentIdentifier;
+}
+
+export namespace ValidateDocumentNotification {
+    export const type = new NotificationType<ValidateDocumentParams>('java/validateDocument');
+}
+
+export interface SourceInvalidatedEvent {
+    /**
+     * The package fragment roots that get new source attachments.
+     * The key is its root path, the value means if its source is
+     * automatically downloaded.
+     */
+    affectedRootPaths: { [key: string]: boolean };
 }

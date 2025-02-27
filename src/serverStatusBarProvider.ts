@@ -1,118 +1,92 @@
 'use strict';
 
-import { StatusBarItem, window, StatusBarAlignment, version } from "vscode";
-import { Commands } from "./commands";
+import { StatusBarItem, window, StatusBarAlignment, ThemeColor, commands, QuickPickItem, QuickPickItemKind } from "vscode";
 import { Disposable } from "vscode-languageclient";
-import * as semver from "semver";
-import { ServerStatusItemFactory, StatusCommands, supportsLanguageStatus } from "./languageStatusItemFactory";
+import { StatusCommands } from "./languageStatusItemFactory";
+import { Commands } from "./commands";
+import { ServerStatusKind } from "./serverStatus";
 
 class ServerStatusBarProvider implements Disposable {
 	private statusBarItem: StatusBarItem;
-	private languageStatusItem: any;
-	// Adopt new API for status bar item, meanwhile keep the compatibility with Theia.
-	// See: https://github.com/redhat-developer/vscode-java/issues/1982
-	private isAdvancedStatusBarItem: boolean;
 
 	constructor() {
-		this.isAdvancedStatusBarItem = semver.gte(version, "1.57.0");
-	}
-
-	public initialize(): void {
-		if (supportsLanguageStatus()) {
-			this.languageStatusItem = ServerStatusItemFactory.create();
-		} else {
-			if (this.isAdvancedStatusBarItem) {
-				this.statusBarItem = (window.createStatusBarItem as any)("java.serverStatus", StatusBarAlignment.Right, Number.MIN_VALUE);
-			} else {
-				this.statusBarItem = window.createStatusBarItem(StatusBarAlignment.Right, Number.MIN_VALUE);
-			}
-		}
+		this.statusBarItem = window.createStatusBarItem("java.serverStatus", StatusBarAlignment.Left);
+		this.statusBarItem.show();
 	}
 
 	public showLightWeightStatus(): void {
-		if (supportsLanguageStatus()) {
-			ServerStatusItemFactory.showLightWeightStatus(this.languageStatusItem);
-		} else {
-			if (this.isAdvancedStatusBarItem) {
-				(this.statusBarItem as any).name = "Java Server Mode";
-			}
-			this.statusBarItem.text = StatusIcon.LightWeight;
-			this.statusBarItem.command = StatusCommands.switchToStandardCommand;
-			this.statusBarItem.tooltip = "Java language server is running in LightWeight mode, click to switch to Standard mode";
-			this.statusBarItem.show();
-		}
+		this.statusBarItem.name = "Java Server Mode";
+		this.statusBarItem.text = `${StatusIcon.lightWeight} Java: Lightweight Mode`;
+		this.statusBarItem.command = StatusCommands.switchToStandardCommand;
+		this.statusBarItem.tooltip = "Java language server is running in LightWeight mode, click to switch to Standard mode";
 	}
 
-	public showStandardStatus(): void {
-		if (supportsLanguageStatus()) {
-			ServerStatusItemFactory.showStandardStatus(this.languageStatusItem);
-			ServerStatusItemFactory.setBusy(this.languageStatusItem);
-		} else {
-			if (this.isAdvancedStatusBarItem) {
-				(this.statusBarItem as any).name = "Java Server Status";
-			}
-			this.statusBarItem.text = StatusIcon.Busy;
-			this.statusBarItem.command = Commands.SHOW_SERVER_TASK_STATUS;
-			this.statusBarItem.tooltip = "";
-			this.statusBarItem.show();
-		}
+	public showNotImportedStatus(): void {
+		this.statusBarItem.name = "No projects are imported";
+		this.statusBarItem.text = `${StatusIcon.notImported} Java: No Projects Imported`;
+		this.statusBarItem.command = StatusCommands.startStandardServerCommand;
+		this.statusBarItem.tooltip = "No projects are imported, click to load projects";
 	}
 
-	public setBusy(): void {
-		if (supportsLanguageStatus()) {
-			ServerStatusItemFactory.setBusy(this.languageStatusItem);
-		} else {
-			this.statusBarItem.text = StatusIcon.Busy;
-		}
+	public setBusy(process: string): void {
+		this.statusBarItem.text = `${StatusIcon.busy} Java: ${process}`;
+		this.statusBarItem.tooltip = process;
+		this.statusBarItem.command = {
+			title: "Show Java status menu",
+			command: Commands.OPEN_STATUS_SHORTCUT,
+			tooltip: "Show Java status menu",
+			arguments: [ServerStatusKind.busy],
+		};
 	}
 
 	public setError(): void {
-		if (supportsLanguageStatus()) {
-			ServerStatusItemFactory.setError(this.languageStatusItem);
-		} else {
-			this.statusBarItem.text = StatusIcon.Error;
-			this.statusBarItem.command = Commands.OPEN_LOGS;
-		}
+		this.statusBarItem.text = `${StatusIcon.java} Java: Error`;
+		this.statusBarItem.tooltip = "Show Java status menu";
+		this.statusBarItem.command = {
+			title: "Show Java status menu",
+			command: Commands.OPEN_STATUS_SHORTCUT,
+			tooltip: "Show Java status menu",
+			arguments: [ServerStatusKind.error],
+		};
 	}
 
 	public setWarning(): void {
-		if (supportsLanguageStatus()) {
-			ServerStatusItemFactory.setWarning(this.languageStatusItem);
-		} else {
-			this.statusBarItem.text = StatusIcon.Warning;
-			this.statusBarItem.command = "workbench.panel.markers.view.focus";
-			this.statusBarItem.tooltip = "Errors occurred in project configurations, click to show the PROBLEMS panel";
-		}
+		this.statusBarItem.text = `${StatusIcon.java} Java: Warning`;
+		this.statusBarItem.tooltip = "Show Java status menu";
+		this.statusBarItem.command = {
+			title: "Show Java status menu",
+			command: Commands.OPEN_STATUS_SHORTCUT,
+			tooltip: "Show Java status menu",
+			arguments: [ServerStatusKind.warning],
+		};
 	}
 
 	public setReady(): void {
-		if (supportsLanguageStatus()) {
-			ServerStatusItemFactory.setReady(this.languageStatusItem);
-		} else {
-			this.statusBarItem.text = StatusIcon.Ready;
-			this.statusBarItem.command = Commands.SHOW_SERVER_TASK_STATUS;
-			this.statusBarItem.tooltip = "ServiceReady";
-		}
-	}
-
-	public updateTooltip(tooltip: string): void {
-		if (!supportsLanguageStatus()) {
-			this.statusBarItem.tooltip = tooltip;
-		}
+		this.statusBarItem.text = `${StatusIcon.java} Java: Ready`;
+		this.statusBarItem.tooltip = "Show Java status menu";
+		this.statusBarItem.command = {
+			title: "Show Java status menu",
+			command: Commands.OPEN_STATUS_SHORTCUT,
+			tooltip: "Show Java status menu",
+			arguments: ["Ready"],
+		};
 	}
 
 	public dispose(): void {
 		this.statusBarItem?.dispose();
-		this.languageStatusItem?.dispose();
 	}
 }
 
 export enum StatusIcon {
-	LightWeight = "$(rocket)",
-	Busy = "$(sync~spin)",
-	Ready = "$(thumbsup)",
-	Warning = "$(thumbsdown)",
-	Error = "$(thumbsdown)"
+	lightWeight = "$(rocket)",
+	notImported = "$(info)",
+	busy = "$(sync~spin)",
+	java = "$(coffee)",
+}
+
+export interface ShortcutQuickPickItem extends QuickPickItem {
+	command: string;
+	args?: any[];
 }
 
 export const serverStatusBarProvider: ServerStatusBarProvider = new ServerStatusBarProvider();

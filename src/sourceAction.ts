@@ -1,17 +1,37 @@
 'use strict';
 
-import { commands, window, ExtensionContext, ViewColumn, Uri, Disposable, workspace, TextEditorRevealType } from 'vscode';
+import { Disposable, ExtensionContext, TextEditorRevealType, Uri, ViewColumn, commands, window, workspace } from 'vscode';
 import { CodeActionParams, WorkspaceEdit } from 'vscode-languageclient';
 import { LanguageClient } from 'vscode-languageclient/node';
 import { Commands } from './commands';
-import { applyWorkspaceEdit } from './extension';
-import { ListOverridableMethodsRequest, AddOverridableMethodsRequest, CheckHashCodeEqualsStatusRequest, GenerateHashCodeEqualsRequest,
-OrganizeImportsRequest, ImportCandidate, ImportSelection, GenerateToStringRequest, CheckToStringStatusRequest, VariableBinding, GenerateAccessorsRequest, CheckConstructorStatusRequest, GenerateConstructorsRequest, CheckDelegateMethodsStatusRequest, GenerateDelegateMethodsRequest, AccessorKind, AccessorCodeActionRequest, AccessorCodeActionParams } from './protocol';
+import { getActiveLanguageClient } from './extension';
+import {
+    AccessorCodeActionParams,
+    AccessorCodeActionRequest,
+    AccessorKind,
+    AddOverridableMethodsRequest,
+    CheckConstructorStatusRequest,
+    CheckDelegateMethodsStatusRequest,
+    CheckHashCodeEqualsStatusRequest,
+    CheckToStringStatusRequest,
+    CleanupRequest,
+    GenerateAccessorsRequest,
+    GenerateConstructorsRequest,
+    GenerateDelegateMethodsRequest,
+    GenerateHashCodeEqualsRequest,
+    GenerateToStringRequest,
+    ImportCandidate, ImportSelection,
+    ListOverridableMethodsRequest,
+    OrganizeImportsRequest,
+    VariableBinding
+} from './protocol';
+import { applyWorkspaceEdit } from './standardLanguageClient';
 
 export function registerCommands(languageClient: LanguageClient, context: ExtensionContext) {
     registerOverrideMethodsCommand(languageClient, context);
     registerHashCodeEqualsCommand(languageClient, context);
     registerOrganizeImportsCommand(languageClient, context);
+    registerCleanupCommand(languageClient, context);
     registerChooseImportCommand(context);
     registerGenerateToStringCommand(languageClient, context);
     registerGenerateAccessorsCommand(languageClient, context);
@@ -67,6 +87,15 @@ function registerOverrideMethodsCommand(languageClient: LanguageClient, context:
     }));
 }
 
+function registerCleanupCommand(languageClient: LanguageClient, context: ExtensionContext): void {
+    // Only active when editorLangId == java
+    context.subscriptions.push(commands.registerCommand(Commands.MANUAL_CLEANUP, async () => {
+        const languageClient: LanguageClient | undefined = await getActiveLanguageClient();
+        const workspaceEdit = await languageClient.sendRequest(CleanupRequest.type, languageClient.code2ProtocolConverter.asTextDocumentIdentifier(window.activeTextEditor.document));
+        await applyWorkspaceEdit(workspaceEdit, languageClient);
+    }));
+}
+
 function registerHashCodeEqualsCommand(languageClient: LanguageClient, context: ExtensionContext): void {
     context.subscriptions.push(commands.registerCommand(Commands.HASHCODE_EQUALS_PROMPT, async (params: CodeActionParams) => {
         const result = await languageClient.sendRequest(CheckHashCodeEqualsStatusRequest.type, params);
@@ -119,7 +148,7 @@ function registerOrganizeImportsCommand(languageClient: LanguageClient, context:
 }
 
 function registerChooseImportCommand(context: ExtensionContext): void {
-    context.subscriptions.push(commands.registerCommand(Commands.CHOOSE_IMPORTS, async (uri: string, selections: ImportSelection[]) => {
+    context.subscriptions.push(commands.registerCommand(Commands.CHOOSE_IMPORTS, async (uri: string, selections: ImportSelection[], restoreExistingImports?: boolean) => {
         const chosen: ImportCandidate[] = [];
         const fileUri: Uri = Uri.parse(uri);
         for (let i = 0; i < selections.length; i++) {
@@ -140,7 +169,7 @@ function registerChooseImportCommand(context: ExtensionContext): void {
             try {
                 const pick = await new Promise<any>((resolve, reject) => {
                     const input = window.createQuickPick();
-                    input.title = "Organize Imports";
+                    input.title = restoreExistingImports ? "Add All Missing Imports" : "Organize Imports";
                     input.step = i + 1;
                     input.totalSteps = selections.length;
                     input.placeholder = `Choose type '${typeName}' to import`;
@@ -186,7 +215,7 @@ function registerGenerateToStringCommand(languageClient: LanguageClient, context
             const fieldItems = result.fields.map((field) => {
                 return {
                     label: `${field.name}: ${field.type}`,
-                    picked: true,
+                    picked: field.isSelected,
                     originalField: field
                 };
             });
@@ -238,13 +267,13 @@ async function generateAccessors(languageClient: LanguageClient, params: Accesso
     });
     let accessorsKind: string;
     switch (params.kind) {
-        case AccessorKind.BOTH:
+        case AccessorKind.both:
             accessorsKind = "getters and setters";
             break;
-        case AccessorKind.GETTER:
+        case AccessorKind.getter:
             accessorsKind = "getters";
             break;
-        case AccessorKind.SETTER:
+        case AccessorKind.setter:
             accessorsKind = "setters";
             break;
         default:
@@ -385,7 +414,7 @@ function registerGenerateDelegateMethodsCommand(languageClient: LanguageClient, 
 }
 
 async function revealWorkspaceEdit(workspaceEdit: WorkspaceEdit, languageClient: LanguageClient): Promise<void> {
-    const codeWorkspaceEdit = languageClient.protocol2CodeConverter.asWorkspaceEdit(workspaceEdit);
+    const codeWorkspaceEdit = await languageClient.protocol2CodeConverter.asWorkspaceEdit(workspaceEdit);
     if (!codeWorkspaceEdit) {
         return;
     }

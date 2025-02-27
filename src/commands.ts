@@ -65,6 +65,11 @@ export namespace Commands {
     export const PROJECT_CONFIGURATION_STATUS = 'java.projectConfiguration.status';
 
     /**
+     * Set null analysis mode
+     */
+    export const NULL_ANALYSIS_SET_MODE = 'java.compile.nullAnalysis.setMode';
+
+    /**
      * Apply Workspace Edit
      */
     export const APPLY_WORKSPACE_EDIT = 'java.apply.workspaceEdit';
@@ -74,9 +79,9 @@ export namespace Commands {
      */
     export const EXECUTE_WORKSPACE_COMMAND = 'java.execute.workspaceCommand';
 
-	/**
-	 * Execute Workspace build (compilation)
-	 */
+    /**
+     * Execute Workspace build (compilation)
+     */
     export const COMPILE_WORKSPACE = 'java.workspace.compile';
 
     /**
@@ -113,13 +118,19 @@ export namespace Commands {
      * Open Java formatter settings
      */
     export const OPEN_FORMATTER = 'java.open.formatter.settings';
+
+    /**
+     * Open a file given the URI
+     */
+    export const OPEN_FILE = 'java.open.file';
+
     /**
      * Clean the Java language server workspace
      */
     export const CLEAN_WORKSPACE = 'java.clean.workspace';
     /**
      * Update the source attachment for the selected class file
-	 * client-side & server-side commands
+     * client-side & server-side commands
      */
     export const UPDATE_SOURCE_ATTACHMENT_CMD = 'java.project.updateSourceAttachment.command';
     export const UPDATE_SOURCE_ATTACHMENT = 'java.project.updateSourceAttachment';
@@ -129,28 +140,29 @@ export namespace Commands {
     export const RESOLVE_SOURCE_ATTACHMENT = 'java.project.resolveSourceAttachment';
     /**
      * Mark the folder as the source root of the closest project.
-	 * client-side & server-side commands
+     * client-side & server-side commands
      */
     export const ADD_TO_SOURCEPATH_CMD = 'java.project.addToSourcePath.command';
     export const ADD_TO_SOURCEPATH = 'java.project.addToSourcePath';
     /**
      * Unmark the folder as the source root of the project.
-	 * client-side & server-side commands
+     * client-side & server-side commands
      */
     export const REMOVE_FROM_SOURCEPATH_CMD = 'java.project.removeFromSourcePath.command';
     export const REMOVE_FROM_SOURCEPATH = 'java.project.removeFromSourcePath';
     /**
      * List all recognized source roots in the workspace.
-	 * client-side & server-side commands
+     * client-side & server-side commands
      */
     export const LIST_SOURCEPATHS_CMD = 'java.project.listSourcePaths.command';
     export const LIST_SOURCEPATHS = 'java.project.listSourcePaths';
     /**
      * Import new projects
-	 * client-side & server-side commands
+     * client-side & server-side commands
      */
     export const IMPORT_PROJECTS_CMD = 'java.project.import.command';
     export const IMPORT_PROJECTS = 'java.project.import';
+    export const CHANGE_IMPORTED_PROJECTS = 'java.project.changeImportedProjects';
     /**
      * Override or implements the methods from the supertypes.
      */
@@ -159,7 +171,7 @@ export namespace Commands {
      * Generate hashCode() and equals().
      */
     export const HASHCODE_EQUALS_PROMPT = 'java.action.hashCodeEqualsPrompt';
-	/**
+    /**
      * Open settings.json
      */
     export const OPEN_JSON_SETTINGS = 'workbench.action.openSettingsJson';
@@ -171,10 +183,19 @@ export namespace Commands {
      * Organize imports silently.
      */
     export const ORGANIZE_IMPORTS_SILENTLY = "java.edit.organizeImports";
+    export const MANUAL_CLEANUP = "java.action.doCleanup";
+    /**
+     * Handle a paste event.
+     */
+    export const HANDLE_PASTE_EVENT = "java.edit.handlePasteEvent";
     /**
      * Custom paste action (triggers auto-import)
      */
     export const CLIPBOARD_ONPASTE = 'java.action.clipboardPasteAction';
+    /**
+     * Custom paste action in files explorer
+     */
+     export const FILESEXPLORER_ONPASTE = 'java.action.filesExplorerPasteAction';
     /**
      * Choose type to import.
      */
@@ -259,14 +280,20 @@ export namespace Commands {
      * Command to switch between standard mode and lightweight mode.
      */
     export const SWITCH_SERVER_MODE = 'java.server.mode.switch';
+	/**
+     * Command to restart the language server.
+     */
+	export const RESTART_LANGUAGE_SERVER = 'java.server.restart';
 
     export const LEARN_MORE_ABOUT_REFACTORING = '_java.learnMoreAboutRefactorings';
+
+    export const LEARN_MORE_ABOUT_CLEAN_UPS = '_java.learnMoreAboutCleanUps';
 
     export const TEMPLATE_VARIABLES = '_java.templateVariables';
 
     export const NOT_COVERED_EXECUTION = '_java.notCoveredExecution';
 
-    export const MEATDATA_FILES_GENERATION = '_java.metadataFilesGeneration';
+    export const METADATA_FILES_GENERATION = '_java.metadataFilesGeneration';
 
     export const RUNTIME_VALIDATION_OPEN = 'java.runtimeValidation.open';
 
@@ -274,7 +301,78 @@ export namespace Commands {
 
     export const GET_WORKSPACE_PATH = '_java.workspace.path';
 
-    export const UPGRADE_GRADLE_WRAPPER = '_java.gradle.upgradeWrapper';
+    /**
+     * Update the gradle wrapper version for the given project
+     * client-side & server-side commands
+     */
+    export const UPGRADE_GRADLE_WRAPPER_CMD = 'java.project.upgradeGradle.command';
+    export const UPGRADE_GRADLE_WRAPPER = 'java.project.upgradeGradle';
 
     export const LOMBOK_CONFIGURE = "java.lombokConfigure";
+
+    /**
+     * The JDT.LS command to create module-info.java
+     */
+    export const CREATE_MODULE_INFO = "java.project.createModuleInfo";
+
+    /**
+     * The VS Code command to create module-info.java
+     */
+    export const CREATE_MODULE_INFO_COMMAND = "java.project.createModuleInfo.command";
+
+    /**
+     * The JDT.LS command to reload the bundle list (java extension contributions).
+     */
+    export const REFRESH_BUNDLES = "java.reloadBundles";
+
+    /**
+     * The VS Code command to reload the bundle list.
+     * JDT.LS will call this command before set the server to ready state.
+     */
+    export const REFRESH_BUNDLES_COMMAND = "_java.reloadBundles.command";
+
+    /**
+     * Clean everything in the shared index directory.
+     */
+    export const CLEAN_SHARED_INDEXES = "java.clean.sharedIndexes";
+
+    /**
+    * Get the uri of the decompiled class file.
+    */
+    export const GET_DECOMPILED_SOURCE = "java.decompile";
+
+    /**
+    * Smart semicolon detection.
+    */
+    export const SMARTSEMICOLON_DETECTION = "java.edit.smartSemicolonDetection";
+
+    /**
+     * Determine if pasted text is a java file and resolve packages
+     */
+    export const RESOLVE_PASTED_TEXT = "java.project.resolveText";
+
+    /**
+     * The command when clicking the server status bar item.
+     */
+    export const OPEN_STATUS_SHORTCUT = "_java.openShortcuts";
+
+    /**
+     * Change java search scope.
+     */
+    export const CHANGE_JAVA_SEARCH_SCOPE = "java.change.searchScope";
+
+    /**
+     * Show Extended Outline for current document.
+     */
+    export const SHOW_EXTEND_OUTLINE = 'java.action.showExtendedOutline';
+
+}
+
+/**
+ * Command titles used to render in the UI
+ */
+export namespace CommandTitle {
+    export const OPEN_JAVA_SETTINGS = "$(settings-gear) Open Java Settings";
+    export const OPEN_LOGS = "$(output) Open Logs";
+    export const CLEAN_WORKSPACE_CACHE = "$(trash) Clean Workspace Cache...";
 }

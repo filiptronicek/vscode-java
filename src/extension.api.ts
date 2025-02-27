@@ -1,12 +1,12 @@
-import { getDocumentSymbolsCommand } from './documentSymbols';
-import { goToDefinitionCommand } from './goToDefinition';
+import { GetDocumentSymbolsCommand } from './documentSymbols';
+import { GoToDefinitionCommand } from './goToDefinition';
 import { RequirementsData } from './requirements';
 import { TextDocumentPositionParams } from 'vscode-languageclient';
 import { CancellationToken, Command, ProviderResult, Uri, Event } from 'vscode';
 import { ServerMode } from './settings';
 
-export type provideHoverCommandFn = (params: TextDocumentPositionParams, token: CancellationToken) => ProviderResult<Command[] | undefined>;
-export type registerHoverCommand = (callback: provideHoverCommandFn) => void;
+export type ProvideHoverCommandFn = (params: TextDocumentPositionParams, token: CancellationToken) => ProviderResult<Command[] | undefined>;
+export type RegisterHoverCommand = (callback: ProvideHoverCommandFn) => void;
 
 /**
  * Gets the project settings. This API is not supported in light weight server mode so far.
@@ -22,7 +22,7 @@ export type registerHoverCommand = (callback: provideHoverCommandFn) => void;
  * @throws Will throw errors if the Uri does not belong to any project.
  */
 
-export type getProjectSettingsCommand = (uri: string, SettingKeys: string[]) => Promise<Object>;
+export type GetProjectSettingsCommand = (uri: string, SettingKeys: string[]) => Promise<Object>;
 
 /**
  * Gets the classpaths and modulepaths. This API is not supported in light weight server mode so far.
@@ -32,7 +32,7 @@ export type getProjectSettingsCommand = (uri: string, SettingKeys: string[]) => 
  * @throws Will throw errors if the Uri does not belong to any project.
  */
 
-export type getClasspathsCommand = (uri: string, options: ClasspathQueryOptions) => Promise<ClasspathResult>;
+export type GetClasspathsCommand = (uri: string, options: ClasspathQueryOptions) => Promise<ClasspathResult>;
 export type ClasspathQueryOptions = {
 	/**
 	 * Determines the scope of the classpath. Valid scopes are "runtime" and "test".
@@ -62,28 +62,66 @@ export type ClasspathResult = {
  * @returns `true` if the input uri is a test file in its belonging project, otherwise returns false.
  * @throws Will throw errors if the Uri does not belong to any project.
  */
-export type isTestFileCommand = (uri: string) => Promise<boolean>;
+export type IsTestFileCommand = (uri: string) => Promise<boolean>;
 
 export enum ClientStatus {
-	Uninitialized = "Uninitialized",
-	Initialized = "Initialized",
-	Starting = "Starting",
-	Started = "Started",
-	Error = "Error",
-	Stopping = "Stopping",
+	uninitialized = "Uninitialized",
+	initialized = "Initialized",
+	starting = "Starting",
+	started = "Started",
+	error = "Error",
+	stopping = "Stopping",
 }
 
-export const ExtensionApiVersion = '0.7';
+export interface TraceEvent {
+	/**
+	 * Request type.
+	 */
+	type: string;
+	/**
+	 * Time (in milliseconds) taken to process a request.
+	 */
+	duration?: number;
+	/**
+	 * Error that occurs while processing a request.
+	 */
+	error?: any;
+	/**
+	 * The number of results returned by a response.
+	 */
+	resultLength?: number | undefined;
+	/**
+	 * Additional data properties, such as the completion trigger context.
+	 */
+	data?: any;
+	/**
+	 * Whether the response is from the syntax server.
+	 */
+	fromSyntaxServer?: boolean;
+}
+
+export interface SourceInvalidatedEvent {
+	/**
+	 * The paths of the jar files that are linked to new source attachments.
+	 */
+	affectedRootPaths: string[];
+	/**
+	 * The opened editors with updated source.
+	 */
+	affectedEditorDocuments?: Uri[];
+}
+
+export const extensionApiVersion = '0.13';
 
 export interface ExtensionAPI {
 	readonly apiVersion: string;
 	readonly javaRequirement: RequirementsData;
 	status: ClientStatus;
-	readonly registerHoverCommand: registerHoverCommand;
-	readonly getDocumentSymbols: getDocumentSymbolsCommand;
-	readonly getProjectSettings: getProjectSettingsCommand;
-	readonly getClasspaths: getClasspathsCommand;
-	readonly isTestFile: isTestFileCommand;
+	readonly registerHoverCommand: RegisterHoverCommand;
+	readonly getDocumentSymbols: GetDocumentSymbolsCommand;
+	readonly getProjectSettings: GetProjectSettingsCommand;
+	readonly getClasspaths: GetClasspathsCommand;
+	readonly isTestFile: IsTestFileCommand;
 	/**
 	 * An event which fires on classpath update. This API is not supported in light weight server mode so far.
 	 *
@@ -98,7 +136,17 @@ export interface ExtensionAPI {
 	 * The Uris in the array point to the project root path.
 	 */
 	readonly onDidProjectsImport: Event<Uri[]>;
-	readonly goToDefinition: goToDefinitionCommand;
+
+	/**
+	 * An event fires on projects deleted. This API is not supported in light weight server mode so far.
+	 * The Uris in the array point to the project root path.
+	 *
+	 * @since API version 0.13
+	 * @since extension version 1.25.0
+	 */
+	readonly onDidProjectsDelete: Event<Uri[]>;
+
+	readonly goToDefinition: GoToDefinitionCommand;
 	/**
 	 * Indicates the current active mode for Java Language Server. Possible modes are:
 	 * - "Standard"
@@ -118,4 +166,36 @@ export interface ExtensionAPI {
 	 * @since extension version 1.7.0
 	 */
 	readonly serverReady: () => Promise<boolean>;
+
+	/**
+	 * An event that's fired when a request is about to send to language server.
+	 * @since API version 0.12
+	 * @since extension version 1.23.0
+	 */
+	readonly onWillRequestStart: Event<TraceEvent>;
+
+	/**
+	 * An event that's fired when a request has been responded.
+	 * @since API version 0.8
+	 * @since extension version 1.16.0
+	 */
+	readonly onDidRequestEnd: Event<TraceEvent>;
+
+	/**
+	 * Allow 3rd party trace handler to track the language client & server error events.
+	 *
+	 * @since API version 0.9
+	 * @since extension version 1.20.0
+	 */
+	readonly trackEvent: Event<any>;
+
+	/**
+	 * An event that occurs when the package fragment roots have updated source attachments.
+	 * The client should refresh the new source if it has previously requested the source
+	 * from them.
+	 *
+	 * @since API version 0.10
+	 * @since extension version 1.21.0
+	 */
+	readonly onDidSourceInvalidate: Event<SourceInvalidatedEvent>;
 }

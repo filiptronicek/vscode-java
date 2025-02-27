@@ -1,14 +1,13 @@
 import * as assert from 'assert';
-import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as plugin from '../../src/plugin';
-import * as java from '../../src/javaServerStarter';
-import * as requirements from '../../src/requirements';
-import { Commands } from '../../src/commands';
 import { env } from 'process';
+import * as vscode from 'vscode';
+import { Commands } from '../../src/commands';
+import * as java from '../../src/javaServerStarter';
+import * as plugin from '../../src/plugin';
+import * as requirements from '../../src/requirements';
 
-// tslint:disable: only-arrow-functions
 suite('Java Language Extension - Standard', () => {
 
 	test('Extension should be present', () => {
@@ -43,50 +42,85 @@ suite('Java Language Extension - Standard', () => {
 		return vscode.commands.getCommands(true).then((commands) =>
 		{
 			const JAVA_COMMANDS = [
+				Commands.ADD_TO_SOURCEPATH,
 				Commands.ADD_TO_SOURCEPATH_CMD,
 				Commands.APPLY_REFACTORING_COMMAND,
 				Commands.APPLY_WORKSPACE_EDIT,
+				Commands.BUILD_PROJECT,
+				Commands.CHANGE_BASE_TYPE,
 				Commands.CHOOSE_IMPORTS,
+				Commands.CLEAN_SHARED_INDEXES,
 				Commands.CLEAN_WORKSPACE,
 				Commands.CLIPBOARD_ONPASTE,
 				Commands.COMPILE_WORKSPACE,
 				Commands.CONFIGURATION_UPDATE,
+				"java.action.configureFavoriteStaticMembers",
+				Commands.CREATE_MODULE_INFO,
+				Commands.CREATE_MODULE_INFO_COMMAND,
 				Commands.EXECUTE_WORKSPACE_COMMAND,
 				Commands.GENERATE_ACCESSORS_PROMPT,
 				Commands.GENERATE_CONSTRUCTORS_PROMPT,
 				Commands.GENERATE_DELEGATE_METHODS_PROMPT,
 				Commands.GENERATE_TOSTRING_PROMPT,
+				Commands.GET_CLASSPATHS,
+				Commands.GET_PROJECT_SETTINGS,
+				Commands.GET_ALL_JAVA_PROJECTS,
+				Commands.HANDLE_PASTE_EVENT,
 				Commands.HASHCODE_EQUALS_PROMPT,
 				Commands.IGNORE_INCOMPLETE_CLASSPATH,
 				Commands.IGNORE_INCOMPLETE_CLASSPATH_HELP,
+				Commands.IMPORT_PROJECTS,
 				Commands.IMPORT_PROJECTS_CMD,
+				Commands.IS_TEST_FILE,
+				Commands.LIST_SOURCEPATHS,
 				Commands.LIST_SOURCEPATHS_CMD,
 				Commands.NAVIGATE_TO_SUPER_IMPLEMENTATION_COMMAND,
+				Commands.NULL_ANALYSIS_SET_MODE,
 				Commands.OPEN_CLIENT_LOG,
 				Commands.OPEN_FORMATTER,
 				Commands.OPEN_JSON_SETTINGS,
+				Commands.OPEN_FILE,
 				Commands.OPEN_LOGS,
 				Commands.OPEN_OUTPUT,
 				Commands.OPEN_SERVER_LOG,
 				Commands.OPEN_SERVER_STDOUT_LOG,
 				Commands.OPEN_SERVER_STDERR_LOG,
+				Commands.OPEN_TYPE_HIERARCHY,
 				Commands.ORGANIZE_IMPORTS,
+				Commands.ORGANIZE_IMPORTS_SILENTLY,
 				Commands.OVERRIDE_METHODS_PROMPT,
 				Commands.PROJECT_CONFIGURATION_STATUS,
-				Commands.BUILD_PROJECT,
+				Commands.REFRESH_BUNDLES,
+				"java.project.refreshDiagnostics",
+				Commands.REMOVE_FROM_SOURCEPATH,
 				Commands.REMOVE_FROM_SOURCEPATH_CMD,
 				Commands.RENAME_COMMAND,
+				"java.project.resolveStackTraceLocation",
+				Commands.RESOLVE_TYPE_HIERARCHY,
+				Commands.RESOLVE_WORKSPACE_SYMBOL,
+				Commands.RUNTIME_VALIDATION_OPEN,
+				Commands.RESTART_LANGUAGE_SERVER,
 				Commands.SHOW_JAVA_IMPLEMENTATIONS,
 				Commands.SHOW_JAVA_REFERENCES,
 				Commands.SHOW_SERVER_TASK_STATUS,
 				Commands.SWITCH_SERVER_MODE,
-				Commands.UPDATE_SOURCE_ATTACHMENT_CMD,
-				Commands.RUNTIME_VALIDATION_OPEN,
-				Commands.CHANGE_BASE_TYPE,
+				"java.edit.stringFormatting",
+				"java.completion.onDidSelect",
+				"java.decompile",
+				"java.protobuf.generateSources",
 				Commands.SHOW_TYPE_HIERARCHY,
 				Commands.SHOW_SUBTYPE_HIERARCHY,
 				Commands.SHOW_SUPERTYPE_HIERARCHY,
 				Commands.SHOW_CLASS_HIERARCHY,
+				Commands.UPGRADE_GRADLE_WRAPPER,
+				Commands.UPGRADE_GRADLE_WRAPPER_CMD,
+				Commands.UPDATE_SOURCE_ATTACHMENT,
+				Commands.UPDATE_SOURCE_ATTACHMENT_CMD,
+				Commands.SMARTSEMICOLON_DETECTION,
+				Commands.RESOLVE_SOURCE_ATTACHMENT,
+				Commands.FILESEXPLORER_ONPASTE,
+				Commands.RESOLVE_PASTED_TEXT,
+				Commands.CHANGE_JAVA_SEARCH_SCOPE
 			].sort();
 			const foundJavaCommands = commands.filter((value) => {
 				return JAVA_COMMANDS.indexOf(value)>=0 || value.startsWith('java.');
@@ -101,11 +135,11 @@ suite('Java Language Extension - Standard', () => {
 
 		java.parseVMargs(vmArgs, userArgs);
 
-		assert.equal(4, vmArgs.length);
+		assert.equal(5, vmArgs.length);
 		assert.equal('-noverify', vmArgs[0]);
 		assert.equal('foo', vmArgs[1]);
 		assert.equal('-Xmx512m', vmArgs[2]);
-		assert.equal('-Dfoo=something with blank', vmArgs[3]);
+		assert.equal('-Dfoo=something with blank', vmArgs[4]);
 	});
 
 	test('should parse VM arguments with spaces', () => {
