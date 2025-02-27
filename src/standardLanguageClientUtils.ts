@@ -33,11 +33,11 @@ export async function projectConfigurationUpdate(languageClient: LanguageClient,
 	}
 
 	if (resources.length === 1) {
-		languageClient.sendNotification(ProjectConfigurationUpdateRequest.type, {
+		await languageClient.sendNotification(ProjectConfigurationUpdateRequest.type, {
 			uri: resources[0].toString(),
 		});
 	} else if (resources.length > 1) {
-		languageClient.sendNotification(ProjectConfigurationUpdateRequest.typeV2, {
+		await languageClient.sendNotification(ProjectConfigurationUpdateRequest.typeV2, {
 			identifiers: resources.map(r => {
 				return { uri: r.toString() };
 			}),
@@ -56,26 +56,30 @@ function isJavaConfigFile(filePath: string) {
  * @param activeFileUri the uri of the active file.
  * @param placeHolder message to be shown in quick pick.
  */
-export async function askForProjects(activeFileUri: Uri | undefined, placeHolder: string): Promise<Uri[]> {
+export async function askForProjects(activeFileUri: Uri | undefined, placeHolder: string, canPickMany: boolean = true): Promise<Uri[]> {
 	const projectPicks: QuickPickItem[] = await generateProjectPicks(activeFileUri);
 	if (!projectPicks?.length) {
 		return [];
 	} else if (projectPicks.length === 1) {
 		return [Uri.file(projectPicks[0].detail)];
-	} else {
-		const choices: QuickPickItem[] | undefined = await window.showQuickPick(projectPicks, {
-			matchOnDetail: true,
-			placeHolder: placeHolder,
-			ignoreFocusOut: true,
-			canPickMany: true,
-		});
-
-		if (choices?.length) {
-			return choices.map(c => Uri.file(c.detail));
-		}
 	}
 
-	return [];
+	const choices: QuickPickItem[] | QuickPickItem | undefined = await window.showQuickPick(projectPicks, {
+		matchOnDetail: true,
+		placeHolder: placeHolder,
+		ignoreFocusOut: true,
+		canPickMany: canPickMany,
+	});
+
+	if (!choices) {
+		return [];
+	}
+
+	if (Array.isArray(choices)) {
+		return choices.map(c => Uri.file(c.detail));
+	}
+
+	return [Uri.file(choices.detail)];
 }
 
 /**
@@ -129,15 +133,14 @@ export async function upgradeGradle(projectUri: string, version?: string): Promi
 		title: "Upgrading Gradle wrapper...",
 		cancellable: true,
 	}, (_progress, token) => {
-		return commands.executeCommand(Commands.EXECUTE_WORKSPACE_COMMAND, "java.project.upgradeGradle", projectUri, version, token);
+		return commands.executeCommand<string>(Commands.EXECUTE_WORKSPACE_COMMAND, Commands.UPGRADE_GRADLE_WRAPPER, projectUri, version, token);
 	});
 	if (result) {
-		const propertiesFile = path.join(Uri.parse(projectUri).fsPath, "gradle", "wrapper", "gradle-wrapper.properties");
-		if (fse.pathExists(propertiesFile)) {
-			const content = await fse.readFile(propertiesFile);
+		if (await fse.pathExists(result)) {
+			const content = await fse.readFile(result);
 			const offset = content.toString().indexOf("distributionUrl");
 			if (offset >= 0) {
-				const document = await workspace.openTextDocument(propertiesFile);
+				const document = await workspace.openTextDocument(result);
 				const position = document.positionAt(offset);
 				const distributionUrlRange = document.getWordRangeAtPosition(position);
 				window.showTextDocument(document, {selection: new Range(distributionUrlRange.start, new Position(distributionUrlRange.start.line + 1, 0))});

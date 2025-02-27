@@ -1,19 +1,19 @@
-import { tasks, Task, TaskScope, Pseudoterminal, CustomExecution, TaskExecution, TaskRevealKind, TaskPanelKind, EventEmitter, Event, TerminalDimensions, window, ProgressLocation, Progress, workspace } from "vscode";
+import { tasks, Task, TaskScope, Pseudoterminal, CustomExecution, TaskExecution, TaskRevealKind, TaskPanelKind, EventEmitter, Event, TerminalDimensions, window, Progress, ProgressLocation, workspace } from "vscode";
 import { serverTasks } from "./serverTasks";
 import { Disposable } from "vscode-languageclient";
-import { ProgressReport } from "./protocol";
+import { ProgressReport, ProgressKind } from "./protocol";
 import { Commands } from "./commands";
 import { getJavaConfiguration } from "./utils";
 
 const JAVA_SERVER_TASK_PRESENTER_TASK_NAME = "Java Build Status";
 
 export namespace serverTaskPresenter {
-	export async function presentServerTaskView() {
+	export async function presentServerTaskView(preserveFocus?: boolean) {
 		const execution = await getPresenterTaskExecution();
 		const terminals = window.terminals;
 		const presenterTerminals = terminals.filter(terminal => terminal.name.indexOf(execution.task.name) >= 0);
 		if (presenterTerminals.length > 0) {
-			presenterTerminals[0].show();
+			presenterTerminals[0].show(preserveFocus);
 		}
 		activationProgressNotification.hide();
 	}
@@ -47,7 +47,7 @@ async function getPresenterTaskExecution(): Promise<TaskExecution> {
 // Fix #1180. When switching to multiroot workspace by "Add Folder to Workspace...", vscode restarts the extension
 // host without deactivating the extension. See https://github.com/microsoft/vscode/issues/69335
 // This is to clean up the existing task execution and terminal created by previous extension instance because they
-// are no longer accessible to the current extension instance afte the restart.
+// are no longer accessible to the current extension instance after the restart.
 // TODO - As mentioned in https://github.com/microsoft/vscode/issues/69335, vscode will no long restart because of
 // workspace changes. We can revisit this issue to see if we can remove the fix.
 async function killExistingExecutions() {
@@ -67,15 +67,15 @@ async function killExistingExecutions() {
 }
 
 class ServerTaskTerminal implements Pseudoterminal {
-	private _onDidWriteEvent = new EventEmitter<string>();
-	private _onDidCloseEvent = new EventEmitter<number | void>();
-	private _subscription: Disposable  = null;
+	private onDidWriteEvent = new EventEmitter<string>();
+	private onDidCloseEvent = new EventEmitter<number | void>();
+	private subscription: Disposable  = null;
 
-	onDidWrite: Event<string> = this._onDidWriteEvent.event;
-	onDidClose?: Event<number | void> = this._onDidCloseEvent.event;
+	onDidWrite: Event<string> = this.onDidWriteEvent.event;
+	onDidClose?: Event<number | void> = this.onDidCloseEvent.event;
 
 	constructor() {
-		this._subscription = serverTasks.onDidUpdateServerTask(serverTasks => {
+		this.subscription = serverTasks.onDidUpdateServerTask(serverTasks => {
 			this.printTasks(serverTasks);
 		});
 	}
@@ -86,16 +86,18 @@ class ServerTaskTerminal implements Pseudoterminal {
 	}
 
 	private clearScreen() {
-		this._onDidWriteEvent.fire("\u001Bc");
+		this.onDidWriteEvent.fire("\u001Bc");
 	}
 
 	private printTask(report: ProgressReport) {
 		if (report.complete) {
-			this._onDidWriteEvent.fire(`${report.id.slice(0, 8)} ${report.task} [Done]\r\n`);
+			this.onDidWriteEvent.fire(`${report.token.slice(0, 8)} ${report.value.message} [Done]\r\n`);
 			return;
 		}
 
-		this._onDidWriteEvent.fire(`${report.id.slice(0, 8)} ${report.task}: ${report.status} [${report.workDone}/${report.totalWork}]\r\n`);
+		const taskMsg = `${report.token.slice(0, 8)} ${report.value.message}`;
+
+		this.onDidWriteEvent.fire(`${taskMsg}\r\n`);
 	}
 
 	open(initialDimensions: TerminalDimensions): void {
@@ -107,8 +109,8 @@ class ServerTaskTerminal implements Pseudoterminal {
 	close(): void {
 		presenterTaskExecution.terminate();
 		presenterTaskExecution = null;
-		this._subscription.dispose();
-		this._onDidCloseEvent.fire();
+		this.subscription.dispose();
+		this.onDidCloseEvent.fire();
 	}
 
 	setDimensions(dimensions: TerminalDimensions) {
@@ -133,19 +135,16 @@ export class ActivationProgressNotification {
 		} else if (!showBuildStatusEnabled) {
 			return;
 		}
-		const isProgressReportEnabled: boolean = getJavaConfiguration().get("progressReports.enabled");
-		const title = isProgressReportEnabled ? "Opening Java Projects" : "Opening Java Projects...";
+		const title = "Opening Java Projects";
 		window.withProgress({
 			location: ProgressLocation.Notification,
 			title,
 			cancellable: false,
 		}, (progress: Progress<{ message?: string; increment?: number }>) => {
 			return new Promise<void>((resolve) => {
-				if (isProgressReportEnabled) {
-					progress.report({
-						message: `[check details](command:${Commands.SHOW_SERVER_TASK_STATUS})`
-					});
-				}
+				progress.report({
+					message: `[check details](command:${Commands.SHOW_SERVER_TASK_STATUS})`
+				});
 				this.onHide(() => {
 					for (const disposable of this.disposables) {
 						disposable.dispose();

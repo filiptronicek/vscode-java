@@ -8,6 +8,8 @@ images/**
 .gitignore
 .github/**
 tsconfig.json
+tsconfig.webview.json
+tsconfig.base.json
 vsc-extension-quickstart.md
 undefined/**
 CONTRIBUTING.md
@@ -20,6 +22,11 @@ node_modules
 .travis.yml
 gulpfile.js
 Jenkinsfile
-tslint.json
+.eslintrc.json
+.eslintignore
 webpack.config.js
 .DS_Store
+.github/**
+.gitignore
+.tool-versions
+.sdkmanrc

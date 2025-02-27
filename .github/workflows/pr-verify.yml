@@ -10,25 +10,26 @@ jobs:
         os: [macos-latest, ubuntu-latest]
     steps:
       - name: Check Out Code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Set Up NodeJS
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
-          node-version: '14'
+          node-version: '18'
       - name: Set Up Java
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'adopt'
       - run: npm install -g typescript "vsce"
       - run: wget http://download.eclipse.org/jdtls/snapshots/jdt-language-server-latest.tar.gz
       - run: mkdir server && tar -xvzf jdt-language-server-latest.tar.gz -C ./server && rm jdt-language-server-latest.tar.gz
       - run: npm install
+      - run: npm run repo:check
       - run: npm run compile
       - run: npm run vscode:prepublish
       - run: vsce package
       - run: ls -ll java-*vsix
-      - run: npm run tslint
+      - run: npm run eslint
       - name: Run Tests
         if: runner.os == 'Linux'
         env:

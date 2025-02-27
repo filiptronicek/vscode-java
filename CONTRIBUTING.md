@@ -34,7 +34,7 @@ The following will be a start to finish guide to get the entire language server 
 
 1. Install the required software:
    * latest [Visual Studio Code](https://code.visualstudio.com/)
-   * [Node.js](https://nodejs.org/) v4.0.0 or higher
+   * [Node.js](https://nodejs.org/) v18.17.1 (with npm 9.6.7) or higher
 2. Fork and clone [this repository](https://github.com/redhat-developer/vscode-java)
 
   	Keep in mind the final directories will look like:
@@ -81,8 +81,11 @@ This assumes that you are starting on the `vscode-java` directory
 
 	```bash
 	$ cd ./vscode-java
-	$ npm run build-server
+	$ npm run build
 	```
+If the eclipse.jdt.ls directory is not found as a sibling directory (see the desired hierarchy in the previous step), a snapshot of the language server will be downloaded instead.
+
+To build the server using only the local eclipse.jdt.ls repository, use `npm run build-server`.
 
 **\*Optional:**
 You can run faster server builds during development by calling `npm run fast-build-server` script instead, this will build server binaries that are required by your host OS only. You can also use `npm run watch-server` which will build and place them on the extension for Java changes. These commands run Maven in offline mode, so you might need to run `build-server` at least once, to fetch all the dependencies.
@@ -163,15 +166,25 @@ While developing the language server and the extension, you don't need to deploy
 - In the debug console of VSCode you can see if the connection was successful.
 - When the server is running breakpoints can be reached and hot code replace can be used to make fixes without restarting the server.
 - You can modify `launch.json` to use a different port:
-    - Modify `SERVER_PORT` to specify the port the JDT LS server should connect to.
+    - Modify `JDTLS_SERVER_PORT` to specify the port the JDT LS server should connect to.
 
 ## C-2) The language server opens the connection first, and waits the extension to connect to it.
 - Start the language server via `jdt.ls.socket-stream` launch configuration in VS Code or Eclipse
   ![Socket Steam in VS Code](images/changelog/SocketSteamInVSCode.png)
 
-- Start the extenion via _Launch Extension - JDTLS Client_ in VS Code
+- Start the extension via _Launch Extension - JDTLS Client_ in VS Code
 - You can modify `launch.json` to use a different port:
     - Modify `JDTLS_CLIENT_PORT` to specify the port VS Code should connect to.
+
+## C-3) Set location to a local copy of JDT-LS
+
+This approach is mainly targeting developers of JDT-LS who want to test their changes in VSCode without having to rebuild vscode-java and to deal with the npm and vsix toolchains.
+
+- Make sure a recent snapshot of vscode-java is installed in your VSCode instance (as of vscode-java 1.20.0)
+- (Optionally) clear the workspace state: `$ rm -r $HOME/.config/Code/User/workspaceStorage/0123456789abcdef01234567890abcdef/redhat.java/jdt_ws`
+- Start VSCode with the `JDT_LS_PATH` environment variable set to the local copy of JDT-LS you want to try: `$ JDT_LS_PATH=$HOME/git/eclipse.jdt.ls/org.eclipse.jdt.ls.product/target/repository code`
+
+Most other options such as `DEBUG_VSCODE_JAVA` are still usable with this approach.
 
 ## Sideloading
 
@@ -192,7 +205,7 @@ on ways to sideload or share.
 If you encounter a problem and know it is caused by eclipse.jdt.ls, then please open a bug report over [there](https://github.com/eclipse/eclipse.jdt.ls/issues).
 In doubt, you can report issues in the [vscode-java issue tracker](https://github.com/redhat-developer/vscode-java/issues).
 
-Try to collect as much informations as you can to describe the issue and help us reproduce the problem. Head over to the [troubleshooting page](https://github.com/redhat-developer/vscode-java/wiki/Troubleshooting#enable-logging) to see how to collect useful logging informations.
+Try to collect as much information as you can to describe the issue and help us reproduce the problem. Head over to the [troubleshooting page](https://github.com/redhat-developer/vscode-java/wiki/Troubleshooting#enable-logging) to see how to collect useful logging information.
 
 ### Certificate of Origin
 

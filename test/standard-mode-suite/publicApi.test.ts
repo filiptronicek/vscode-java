@@ -1,20 +1,19 @@
 'use strict';
 
 import * as assert from 'assert';
-import * as path from 'path';
-import { ExtensionAPI, ExtensionApiVersion, ClasspathResult } from '../../src/extension.api';
-import { Uri, DocumentSymbol, extensions, commands } from 'vscode';
-import { ServerMode } from '../../src/settings';
 import * as fse from 'fs-extra';
-import { getJavaConfiguration } from '../../src/utils';
-import { Commands } from '../../src/commands';
-import { constants } from '../common';
+import * as path from 'path';
 import { env } from 'process';
+import { commands, DocumentSymbol, extensions, Uri } from 'vscode';
+import { Commands } from '../../src/commands';
+import { ClasspathResult, ExtensionAPI, extensionApiVersion } from '../../src/extension.api';
+import { ServerMode } from '../../src/settings';
+import { getJavaConfiguration } from '../../src/utils';
+import { constants } from '../common';
 
 const pomPath: string = path.join(constants.projectFsPath, 'pom.xml');
 const gradleTestFolder: string = path.join(constants.projectFsPath, 'testGradle');
 
-// tslint:disable: only-arrow-functions
 suite('Public APIs - Standard', () => {
 
 	suiteSetup(async function() {
@@ -25,7 +24,7 @@ suite('Public APIs - Standard', () => {
 
 	test('version should be correct', async function () {
 		const api: ExtensionAPI = extensions.getExtension('redhat.java').exports;
-		assert.equal(api.apiVersion, ExtensionApiVersion);
+		assert.equal(api.apiVersion, extensionApiVersion);
 	});
 
 	test('requirement should be correct', async function () {
@@ -35,6 +34,7 @@ suite('Public APIs - Standard', () => {
 
 	test('status should be correct', async function () {
 		const api: ExtensionAPI = extensions.getExtension('redhat.java').exports;
+		await api.serverReady();
 		assert.equal(api.status, 'Started');
 	});
 
@@ -141,7 +141,7 @@ suite('Public APIs - Standard', () => {
 
 	test('server mode should be correct', async function () {
 		const api: ExtensionAPI = extensions.getExtension('redhat.java').exports;
-		assert.equal(api.serverMode, ServerMode.STANDARD);
+		assert.equal(api.serverMode, ServerMode.standard);
 	});
 
 	test('onDidServerModeChange should work', async function () {

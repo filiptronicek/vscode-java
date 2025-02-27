@@ -11,7 +11,7 @@
 	"java.project.build": "Rebuild Projects",
 	"java.open.formatter.settings": "Open Java Formatter Settings",
 	"java.clean.workspace": "Clean Java Language Server Workspace",
-	"java.project.updateSourceAttachment": "Attach Source",
+	"java.project.updateSourceAttachment": "Attach Source...",
 	"java.project.addToSourcePath": "Add Folder to Java Source Path",
 	"java.project.removeFromSourcePath": "Remove Folder from Java Source Path",
 	"java.project.listSourcePaths": "List All Java Source Paths",
@@ -21,5 +21,13 @@
 	"java.action.showClassHierarchy": "Show Class Hierarchy",
 	"java.action.showSupertypeHierarchy": "Show Supertype Hierarchy",
 	"java.action.showSubtypeHierarchy": "Show Subtype Hierarchy",
-	"java.action.changeBaseType": "Base on this Type"
+	"java.action.changeBaseType": "Base on this Type",
+	"java.project.createModuleInfo.command": "Create module-info.java",
+	"java.clean.sharedIndexes": "Clean Shared Indexes",
+	"java.server.restart": "Restart Java Language Server",
+	"java.edit.smartSemicolonDetection": "Java Smart Semicolon Detection",
+	"java.action.filesExplorerPasteAction": "Paste Clipboard Text Into a File",
+	"java.action.doCleanup": "Performs Cleanup Actions",
+	"java.change.searchScope": "Change Search Scope",
+	"java.action.showExtendedOutline": "Open Extended Outline"
 }

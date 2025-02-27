@@ -4,11 +4,10 @@ import * as fse from "fs-extra";
 import * as path from "path";
 import * as semver from 'semver';
 import * as vscode from "vscode";
-import { ExtensionContext, window, commands } from "vscode";
+import { ExtensionContext, window, commands, Uri } from "vscode";
 import { Commands } from "./commands";
 import { apiManager } from "./apiManager";
-import { supportsLanguageStatus } from "./languageStatusItemFactory";
-import { runtimeStatusBarProvider } from './runtimeStatusBarProvider';
+import { languageStatusBarProvider } from './runtimeStatusBarProvider';
 import { logger } from './log';
 import { getAllJavaProjects } from "./utils";
 
@@ -68,8 +67,8 @@ function lombokPath2Version(lombokPath: string): string {
 }
 
 function lombokPath2VersionNumber(lombokPath: string): string {
-	const lombokVersioNumber = lombokPath2Version(lombokPath).split('-')[1];
-	return lombokVersioNumber;
+	const lombokVersionNumber = lombokPath2Version(lombokPath).split('-')[1];
+	return lombokVersionNumber;
 }
 
 export function getLombokVersion(): string {
@@ -113,12 +112,12 @@ export function addLombokParam(context: ExtensionContext, params: string[]) {
 		logger.warn("Could not find lombok.jar path.");
 		return;
 	}
-	const lombokAgentParam = '-javaagent:' + lombokJarPath;
+	const lombokAgentParam = `-javaagent:${lombokJarPath}`;
 	params.push(lombokAgentParam);
 	updateActiveLombokPath(lombokJarPath);
 }
 
-export async function checkLombokDependency(context: ExtensionContext) {
+export async function checkLombokDependency(context: ExtensionContext, projectUri?: Uri) {
 	if (!isLombokSupportEnabled()) {
 		return;
 	}
@@ -127,7 +126,7 @@ export async function checkLombokDependency(context: ExtensionContext) {
 	let currentLombokVersion: string = undefined;
 	let previousLombokVersion: string = undefined;
 	let currentLombokClasspath: string = undefined;
-	const projectUris: string[] = await getAllJavaProjects();
+	const projectUris: string[] = projectUri ? [projectUri.toString()] : await getAllJavaProjects();
 	for (const projectUri of projectUris) {
 		const classpathResult = await apiManager.getApiInstance().getClasspaths(projectUri, {scope: 'test'});
 		for (const classpath of classpathResult.classpaths) {
@@ -150,18 +149,18 @@ export async function checkLombokDependency(context: ExtensionContext) {
 	}
 	projectLombokPath = currentLombokClasspath;
 	/* if projectLombokPath is undefined, it means that this project has not imported Lombok.
-	 * We don't need initalize Lombok status bar in this case.
+	 * We don't need initialize Lombok status bar in this case.
 	*/
 	if (!isLombokStatusBarInitialized && projectLombokPath) {
 		if (!isLombokCommandInitialized) {
 			registerLombokConfigureCommand(context);
 			isLombokCommandInitialized = true;
 		}
-		runtimeStatusBarProvider.initializeLombokStatusBar();
+		languageStatusBarProvider.initializeLombokStatusBar();
 		isLombokStatusBarInitialized = true;
 	}
 	if (isLombokStatusBarInitialized && !projectLombokPath) {
-		runtimeStatusBarProvider.destroyLombokStatusBar();
+		languageStatusBarProvider.destroyLombokStatusBar();
 		isLombokStatusBarInitialized = false;
 		cleanupLombokCache(context);
 	}
@@ -245,16 +244,13 @@ export function registerLombokConfigureCommand(context: ExtensionContext) {
 }
 
 export namespace LombokVersionItemFactory {
-	export function create(text: string): any {
-		if (supportsLanguageStatus()) {
-			const item = vscode.languages.createLanguageStatusItem("javaLombokVersionItem", languageServerDocumentSelector);
-			item.severity = vscode.LanguageStatusSeverity?.Information;
-			item.name = "Lombok Version";
-			item.text = text;
-			item.command = getLombokChangeCommand();
-			return item;
-		}
-		return undefined;
+	export function create(text: string): vscode.LanguageStatusItem {
+		const item = vscode.languages.createLanguageStatusItem("javaLombokVersionItem", languageServerDocumentSelector);
+		item.severity = vscode.LanguageStatusSeverity?.Information;
+		item.name = "Lombok Version";
+		item.text = text;
+		item.command = getLombokChangeCommand();
+		return item;
 	}
 
 	export function update(item: any, text: string): void {

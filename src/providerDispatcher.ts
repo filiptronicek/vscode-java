@@ -1,15 +1,14 @@
 'use strict';
 
-import { DocumentSymbolRequest, SymbolInformation as clientSymbolInformation, DocumentSymbol as clientDocumentSymbol, HoverRequest, WorkspaceSymbolRequest } from "vscode-languageclient";
+import { CancellationToken, commands, DocumentSymbol, DocumentSymbolProvider, Event, ExtensionContext, Hover, HoverProvider, languages, MarkdownString, MarkedString, Position, Range, SymbolInformation, SymbolKind, TextDocument, TextDocumentContentProvider, Uri, workspace, WorkspaceSymbolProvider } from "vscode";
+import { DocumentSymbol as clientDocumentSymbol, DocumentSymbolRequest, HoverRequest, SymbolInformation as clientSymbolInformation, WorkspaceSymbolRequest } from "vscode-languageclient";
 import { LanguageClient } from "vscode-languageclient/node";
-import { ExtensionContext, languages, DocumentSymbolProvider, TextDocument, CancellationToken, SymbolInformation, DocumentSymbol, TextDocumentContentProvider, workspace, Uri, Event, HoverProvider, Position, Hover, WorkspaceSymbolProvider, Range, commands, SymbolKind } from "vscode";
-import { ClassFileContentsRequest, StatusNotification } from "./protocol";
-import { createClientHoverProvider } from "./hoverAction";
-import { getActiveLanguageClient } from "./extension";
 import { apiManager } from "./apiManager";
-import { ServerMode } from "./settings";
-import { serverStatus, ServerStatusKind } from "./serverStatus";
 import { Commands } from "./commands";
+import { fixJdtLinksInDocumentation, getActiveLanguageClient } from "./extension";
+import { createClientHoverProvider } from "./hoverAction";
+import { ClassFileContentsRequest } from "./protocol";
+import { ServerMode } from "./settings";
 
 export interface ProviderOptions {
 	contentProviderEvent: Event<Uri>;
@@ -29,10 +28,13 @@ export function registerClientProviders(context: ExtensionContext, options: Prov
 	const jdtProvider = createJDTContentProvider(options);
 	context.subscriptions.push(workspace.registerTextDocumentContentProvider('jdt', jdtProvider));
 
+	const classProvider = createClassContentProvider(options);
+	context.subscriptions.push(workspace.registerTextDocumentContentProvider('class', classProvider));
+
 	overwriteWorkspaceSymbolProvider(context);
 
 	return {
-		handles: [hoverProvider, symbolProvider, jdtProvider]
+		handles: [hoverProvider, symbolProvider, jdtProvider, classProvider]
 	};
 }
 
@@ -47,18 +49,20 @@ export class ClientHoverProvider implements HoverProvider {
 		}
 
 		const serverMode: ServerMode = apiManager.getApiInstance().serverMode;
-		if (serverMode === ServerMode.STANDARD) {
+		if (serverMode === ServerMode.standard) {
 			if (!this.delegateProvider) {
 				this.delegateProvider = createClientHoverProvider(languageClient);
 			}
-			return this.delegateProvider.provideHover(document, position, token);
+			const hover = await this.delegateProvider.provideHover(document, position, token);
+			return fixJdtSchemeHoverLinks(hover);
 		} else {
 			const params = {
 				textDocument: languageClient.code2ProtocolConverter.asTextDocumentIdentifier(document),
 				position: languageClient.code2ProtocolConverter.asPosition(position)
 			};
 			const hoverResponse = await languageClient.sendRequest(HoverRequest.type, params, token);
-			return languageClient.protocol2CodeConverter.asHover(hoverResponse);
+			const hover = languageClient.protocol2CodeConverter.asHover(hoverResponse);
+			return fixJdtSchemeHoverLinks(hover);
 		}
 	}
 }
@@ -76,6 +80,27 @@ function createJDTContentProvider(options: ProviderOptions): TextDocumentContent
 			return languageClient.sendRequest(ClassFileContentsRequest.type, { uri: uri.toString() }, token).then((v: string): string => {
 				return v || '';
 			});
+		}
+	};
+}
+
+function createClassContentProvider(options: ProviderOptions): TextDocumentContentProvider {
+	return <TextDocumentContentProvider>{
+		onDidChange: options.contentProviderEvent,
+		provideTextDocumentContent: async (uri: Uri, token: CancellationToken): Promise<string> => {
+			const languageClient: LanguageClient | undefined = await getActiveLanguageClient();
+
+			if (!languageClient) {
+				return '';
+			}
+			const originalUri = uri.toString().replace(/^class/, "file");
+			const decompiledContent: string = await commands.executeCommand(Commands.EXECUTE_WORKSPACE_COMMAND, Commands.GET_DECOMPILED_SOURCE, originalUri);
+			if (!decompiledContent) {
+				console.log(`Error while getting decompiled source : ${originalUri}`);
+				return "Error while getting decompiled source.";
+			} else {
+				return decompiledContent;
+			}
 		}
 	};
 }
@@ -108,7 +133,7 @@ function createDocumentSymbolProvider(): DocumentSymbolProvider {
 
 const START_OF_DOCUMENT = new Range(new Position(0, 0), new Position(0, 0));
 
-function createWorkspaceSymbolProvider(existingWorkspaceSymbolProvider: WorkspaceSymbolProvider): WorkspaceSymbolProvider  {
+function createWorkspaceSymbolProvider(existingWorkspaceSymbolProvider: WorkspaceSymbolProvider): WorkspaceSymbolProvider {
 	return {
 		provideWorkspaceSymbols: async (query: string, token: CancellationToken) => {
 			// This is a workaround until vscode add support for qualified symbol search which is tracked by
@@ -158,16 +183,39 @@ function createWorkspaceSymbolProvider(existingWorkspaceSymbolProvider: Workspac
 }
 
 function overwriteWorkspaceSymbolProvider(context: ExtensionContext): void {
-	const disposable =  apiManager.getApiInstance().onDidServerModeChange( async (mode) => {
-		if (mode === ServerMode.STANDARD) {
-			const feature =  (await getActiveLanguageClient()).getFeature(WorkspaceSymbolRequest.method);
+	const disposable = apiManager.getApiInstance().onDidServerModeChange(async (mode) => {
+		if (mode === ServerMode.standard) {
+			const feature = (await getActiveLanguageClient()).getFeature(WorkspaceSymbolRequest.method);
 			const providers = feature.getProviders();
 			if (providers && providers.length > 0) {
-				feature.dispose();
+				feature.clear();
 				const workspaceSymbolProvider = createWorkspaceSymbolProvider(providers[0]);
 				context.subscriptions.push(languages.registerWorkspaceSymbolProvider(workspaceSymbolProvider));
 				disposable.dispose();
 			}
 		}
 	});
+}
+
+/**
+ * Returns the hover with all jdt:// links replaced with a command:// link that opens the jdt URI.
+ *
+ * VS Code doesn't render links with the `jdt` scheme in hover popups.
+ * To get around this, you can create a command:// link that invokes a command that opens the corresponding URI.
+ * VS Code will render command:// links in hover pop ups if they are marked as trusted.
+ *
+ * @param hover The hover to fix the jdt:// links for
+ * @returns the hover with all jdt:// links replaced with a command:// link that opens the jdt URI
+ */
+export function fixJdtSchemeHoverLinks(hover: Hover): Hover {
+	const newContents: (MarkedString | MarkdownString)[] = [];
+	for (const content of hover.contents) {
+		if (content instanceof MarkdownString) {
+			newContents.push(fixJdtLinksInDocumentation(content));
+		} else {
+			newContents.push(content);
+		}
+	}
+	hover.contents = newContents;
+	return hover;
 }

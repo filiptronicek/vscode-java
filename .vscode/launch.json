@@ -7,14 +7,20 @@
 			"type": "extensionHost",
 			"request": "launch",
 			"runtimeExecutable": "${execPath}",
+			"debugWebviews": true,
 			"args": ["--extensionDevelopmentPath=${workspaceRoot}" ],
 			"env": {
-				"DEBUG_VSCODE_JAVA":"true"
+				"DEBUG_VSCODE_JAVA":"true",
+				"VSCODE_REDHAT_TELEMETRY_DEBUG":"true"
 			},
 			"stopOnEntry": false,
 			"sourceMaps": true,
 			"outFiles": [ "${workspaceRoot}/dist/**/*.js" ],
-			"preLaunchTask": "npm: watch"
+			"preLaunchTask": "npm: watch",
+			"rendererDebugOptions": {
+				"urlFilter": "*redhat.java*",
+				"sourceMaps": true,
+			}
 		},
 		{
 			"name": "Launch Extension - Remote Server",
@@ -26,8 +32,9 @@
 			"sourceMaps": true,
 			"outFiles": [ "${workspaceRoot}/dist/**/*.js" ],
 			"env": {
-				"SERVER_PORT": "3333",
-				"DEBUG_VSCODE_JAVA":"true"
+				"JDTLS_SERVER_PORT": "3333",
+				"DEBUG_VSCODE_JAVA":"true",
+				"VSCODE_REDHAT_TELEMETRY_DEBUG":"true"
 			},
 			"preLaunchTask": "npm: watch"
 		},
@@ -36,15 +43,21 @@
 			"type": "extensionHost",
 			"request": "launch",
 			"runtimeExecutable": "${execPath}",
+			"debugWebviews": true,
 			"args": ["--extensionDevelopmentPath=${workspaceRoot}" ],
 			"stopOnEntry": false,
 			"sourceMaps": true,
 			"outFiles": [ "${workspaceRoot}/dist/**/*.js" ],
 			"env": {
 				"JDTLS_CLIENT_PORT": "5036",
-				"DEBUG_VSCODE_JAVA":"true"
+				"DEBUG_VSCODE_JAVA":"true",
+				"VSCODE_REDHAT_TELEMETRY_DEBUG":"true"
 			},
-			"preLaunchTask": "npm: watch"
+			"preLaunchTask": "npm: watch",
+			"rendererDebugOptions": {
+				"urlFilter": "*redhat.java*",
+				"sourceMaps": true,
+			}
 		},
 		{
 			"name": "Launch Extension - SyntaxLS Client",
@@ -57,7 +70,8 @@
 			"outFiles": [ "${workspaceRoot}/dist/**/*.js" ],
 			"env": {
 				"SYNTAXLS_CLIENT_PORT": "5037",
-				"DEBUG_VSCODE_JAVA":"true"
+				"DEBUG_VSCODE_JAVA":"true",
+				"VSCODE_REDHAT_TELEMETRY_DEBUG":"true"
 			},
 			"preLaunchTask": "npm: watch"
 		},
@@ -73,7 +87,8 @@
 			"env": {
 				"JDTLS_CLIENT_PORT": "5036",
 				"SYNTAXLS_CLIENT_PORT": "5037",
-				"DEBUG_VSCODE_JAVA":"true"
+				"DEBUG_VSCODE_JAVA":"true",
+				"VSCODE_REDHAT_TELEMETRY_DEBUG":"true"
 			},
 			"preLaunchTask": "npm: watch"
 		},
@@ -121,7 +136,7 @@
 			"skipFiles": [
 				"<node_internals>/**"
 			],
-			"type": "pwa-node"
+			"type": "node"
 		}
 	],
 	"inputs": [
